@@ -1,0 +1,27 @@
+### Create payment service
+POST http://localhost:8080/api/graph/nodes
+Content-Type: application/json
+
+{
+  "name": "payment-service"
+}
+
+### Create database service
+POST http://localhost:8080/api/graph/nodes
+Content-Type: application/json
+
+{
+  "name": "database-service"
+}
+
+### Connect payment service to database service
+POST http://localhost:8080/api/graph/relationships
+Content-Type: application/json
+
+{
+  "source": "payment-service",
+  "target": "database-service"
+}
+
+### Retrieve graph
+GET http://localhost:8080/api/graph
