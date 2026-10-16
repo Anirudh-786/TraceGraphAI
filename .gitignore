@@ -1,0 +1,40 @@
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+application-local.properties
+application-secret.properties
+secrets/
+*.pem
+*.key
+
+# Java / Maven
+target/
+*.class
+*.log
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local databases and backups
+*.sqlite
+*.db
+*.dump
+*.bak
+
+# Temporary files
+*.tmp
+*.swp
