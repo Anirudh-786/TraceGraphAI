@@ -732,5 +732,46 @@ footer {
 }
 
 
+.ai-panel {
+  border: 1px solid rgba(124, 92, 255, 0.35);
+}
+
+.ai-panel form {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color, #d8dce5);
+  border-radius: 10px;
+  background: var(--input-background, transparent);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+.ai-panel textarea:focus {
+  outline: 2px solid rgba(124, 92, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.ai-answer {
+  margin-top: 22px;
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(124, 92, 255, 0.07);
+}
+
+.ai-answer-text {
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 12px 0 20px;
+}
+
+
 
 
