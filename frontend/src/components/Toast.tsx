@@ -1,7 +1,20 @@
-import React, { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { IconCheck, IconAlertTriangle, IconClose } from './Icons';
+import type { ToastType } from '../types';
 
-export default function Toast({ message, type = 'info', onClose, duration = 3500 }) {
+export interface ToastProps {
+  message: string;
+  type?: ToastType;
+  onClose: () => void;
+  duration?: number;
+}
+
+export default function Toast({
+  message,
+  type = 'info',
+  onClose,
+  duration = 3500,
+}: ToastProps): ReactElement | null {
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => {

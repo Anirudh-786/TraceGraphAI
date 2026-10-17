@@ -16,14 +16,24 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:5173")
+import com.tracegraphai.backend.service.GraphSeedService;
+
+@CrossOrigin
 @RestController
 public class GraphController {
 
     private final Graph graph;
+    private final GraphSeedService graphSeedService;
 
-    public GraphController(Graph graph) {
+    public GraphController(Graph graph, GraphSeedService graphSeedService) {
         this.graph = graph;
+        this.graphSeedService = graphSeedService;
+    }
+
+    @PostMapping("/api/graph/seed")
+    public ResponseEntity<Map<String, Object>> seedGraph() {
+        Map<String, Object> result = graphSeedService.seedRealisticMicroservicesGraph();
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/api/graph/nodes")

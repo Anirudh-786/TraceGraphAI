@@ -4,12 +4,24 @@
 // A is upstream (depends on B), B is downstream (dependency provider).
 // Upstream callers are placed towards the left, downstream services towards the right.
 
-export function calculateGraphLayout(rawNodes, rawEdges) {
+import type { Node } from '@xyflow/react';
+import type { GraphNode, GraphEdge, ServiceNodeCustomData } from '../types';
+
+interface LayoutNode extends GraphNode {
+  outEdges: string[];
+  inEdges: string[];
+  layer: number;
+}
+
+export function calculateGraphLayout(
+  rawNodes: GraphNode[],
+  rawEdges: GraphEdge[]
+): Node<ServiceNodeCustomData>[] {
   if (!rawNodes || rawNodes.length === 0) {
     return [];
   }
 
-  const nodeMap = new Map();
+  const nodeMap = new Map<string, LayoutNode>();
   rawNodes.forEach((node) => {
     nodeMap.set(String(node.id), {
       ...node,
@@ -24,14 +36,14 @@ export function calculateGraphLayout(rawNodes, rawEdges) {
     const targetId = String(edge.target);
 
     if (nodeMap.has(sourceId) && nodeMap.has(targetId)) {
-      nodeMap.get(sourceId).outEdges.push(targetId);
-      nodeMap.get(targetId).inEdges.push(sourceId);
+      nodeMap.get(sourceId)!.outEdges.push(targetId);
+      nodeMap.get(targetId)!.inEdges.push(sourceId);
     }
   });
 
   // Assign layers using topological longest path from ingress roots
   // Roots: nodes that have inEdges.length === 0 (no other service depends on them, e.g. edge gateways)
-  const roots = [];
+  const roots: LayoutNode[] = [];
   nodeMap.forEach((node) => {
     if (node.inEdges.length === 0) {
       roots.push(node);
@@ -39,17 +51,23 @@ export function calculateGraphLayout(rawNodes, rawEdges) {
   });
 
   // If there are no strictly root nodes (e.g. all connected in cycle), take lowest in-degree
-  const startingNodes = roots.length > 0 ? roots : Array.from(nodeMap.values()).slice(0, 1);
+  const startingNodes =
+    roots.length > 0 ? roots : Array.from(nodeMap.values()).slice(0, 1);
 
-  const visited = new Set();
-  const queue = startingNodes.map((n) => ({ id: String(n.id), layer: 0 }));
+  const visited = new Set<string>();
+  const queue: { id: string; layer: number }[] = startingNodes.map((n) => ({
+    id: String(n.id),
+    layer: 0,
+  }));
 
   queue.forEach((item) => {
     visited.add(item.id);
   });
 
   while (queue.length > 0) {
-    const { id, layer } = queue.shift();
+    const item = queue.shift();
+    if (!item) continue;
+    const { id, layer } = item;
     const currentNode = nodeMap.get(id);
     if (!currentNode) continue;
 
@@ -77,13 +95,13 @@ export function calculateGraphLayout(rawNodes, rawEdges) {
   });
 
   // Group nodes by layer
-  const layers = new Map();
+  const layers = new Map<number, LayoutNode[]>();
   nodeMap.forEach((node) => {
     const layer = node.layer;
     if (!layers.has(layer)) {
       layers.set(layer, []);
     }
-    layers.get(layer).push(node);
+    layers.get(layer)!.push(node);
   });
 
   // Sort layers
@@ -97,15 +115,15 @@ export function calculateGraphLayout(rawNodes, rawEdges) {
   // Find max layer height to center vertically
   let maxNodesInLayer = 0;
   sortedLayerKeys.forEach((k) => {
-    maxNodesInLayer = Math.max(maxNodesInLayer, layers.get(k).length);
+    maxNodesInLayer = Math.max(maxNodesInLayer, layers.get(k)!.length);
   });
 
   const centerY = BASE_Y + (maxNodesInLayer * NODE_SPACING_Y) / 2;
 
-  const layoutedNodes = [];
+  const layoutedNodes: Node<ServiceNodeCustomData>[] = [];
 
   sortedLayerKeys.forEach((layerKey, colIndex) => {
-    const nodesInCol = layers.get(layerKey);
+    const nodesInCol = layers.get(layerKey)!;
     // Sort nodes in column alphabetically by name for deterministic rendering
     nodesInCol.sort((a, b) => {
       const nameA = a.properties?.name || a.id;
@@ -125,7 +143,10 @@ export function calculateGraphLayout(rawNodes, rawEdges) {
           y: Math.max(50, startY + rowIndex * NODE_SPACING_Y),
         },
         data: {
-          ...node,
+          id: node.id,
+          name: node.properties?.name || node.name || String(node.id),
+          labels: node.labels || [],
+          properties: node.properties || {},
           rawLabels: node.labels || [],
           rawProperties: node.properties || {},
           incomingCount: node.inEdges.length,

@@ -1,13 +1,24 @@
-import React, { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import {
   IconClose,
   IconZap,
   IconSparkles,
-  IconArrowRight,
-  IconLayers,
-  IconShield,
   getServiceIcon,
 } from './Icons';
+import type { GraphNode, GraphEdge, ServiceRisk, ImpactResult, AffectedService } from '../types';
+
+export interface NodeInspectorProps {
+  selectedNode: GraphNode | null;
+  allNodes?: GraphNode[];
+  allEdges?: GraphEdge[];
+  riskData?: ServiceRisk | null;
+  impactResult?: ImpactResult | null;
+  isImpactLoading?: boolean;
+  onClose: () => void;
+  onRunImpact: (serviceName: string) => void;
+  onSelectNodeByName: (serviceName: string) => void;
+  onAskAi: (serviceName: string) => void;
+}
 
 export default function NodeInspector({
   selectedNode,
@@ -20,10 +31,10 @@ export default function NodeInspector({
   onRunImpact,
   onSelectNodeByName,
   onAskAi,
-}) {
+}: NodeInspectorProps): ReactElement | null {
   // Listen for Escape key to close inspector
   useEffect(() => {
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         onClose();
       }
@@ -34,13 +45,23 @@ export default function NodeInspector({
 
   if (!selectedNode) return null;
 
-  const nodeProperties = selectedNode.properties || selectedNode.data?.properties || {};
-  const serviceName = nodeProperties.name || selectedNode.data?.name || `Service ${selectedNode.id}`;
+  const nodeProperties =
+    (selectedNode.properties as Record<string, unknown>) ||
+    ((selectedNode.data as Record<string, unknown>)?.properties as Record<string, unknown>) ||
+    {};
+  const serviceName =
+    (nodeProperties.name as string) ||
+    ((selectedNode.data as Record<string, unknown>)?.name as string) ||
+    `Service ${selectedNode.id}`;
   const nodeId = String(selectedNode.id);
-  const labels = selectedNode.labels || selectedNode.data?.labels || [];
+  const labels =
+    selectedNode.labels ||
+    ((selectedNode.data as Record<string, unknown>)?.labels as string[]) ||
+    [];
 
   // Criticality only when it exists in source data
-  const criticality = nodeProperties.criticality || riskData?.criticality;
+  const criticality =
+    (nodeProperties.criticality as string) || riskData?.criticality;
 
   // Real Risk metrics
   const riskScore = riskData?.riskScore;
@@ -58,11 +79,14 @@ export default function NodeInspector({
     .filter((edge) => String(edge.source) === nodeId)
     .map((edge) => {
       const targetNode = allNodes.find((n) => String(n.id) === String(edge.target));
-      const targetName = targetNode?.properties?.name || targetNode?.data?.properties?.name || `Node ${edge.target}`;
+      const targetName =
+        targetNode?.properties?.name ||
+        ((targetNode?.data as Record<string, unknown>)?.properties as Record<string, unknown>)?.name ||
+        `Node ${edge.target}`;
       return {
         edgeId: `${edge.source}->${edge.target}`,
-        targetId: edge.target,
-        targetName,
+        targetId: String(edge.target),
+        targetName: String(targetName),
         label: edge.label || 'DEPENDS_ON',
       };
     });
@@ -71,11 +95,14 @@ export default function NodeInspector({
     .filter((edge) => String(edge.target) === nodeId)
     .map((edge) => {
       const sourceNode = allNodes.find((n) => String(n.id) === String(edge.source));
-      const sourceName = sourceNode?.properties?.name || sourceNode?.data?.properties?.name || `Node ${edge.source}`;
+      const sourceName =
+        sourceNode?.properties?.name ||
+        ((sourceNode?.data as Record<string, unknown>)?.properties as Record<string, unknown>)?.name ||
+        `Node ${edge.source}`;
       return {
         edgeId: `${edge.source}->${edge.target}`,
-        sourceId: edge.source,
-        sourceName,
+        sourceId: String(edge.source),
+        sourceName: String(sourceName),
         label: edge.label || 'DEPENDS_ON',
       };
     });
@@ -89,9 +116,7 @@ export default function NodeInspector({
       {/* Header */}
       <div className="inspector-topbar">
         <div className="inspector-title-group">
-          <div className="inspector-icon-wrap">
-            {getServiceIcon(serviceName)}
-          </div>
+          <div className="inspector-icon-wrap">{getServiceIcon(serviceName)}</div>
           <div>
             <h3 className="inspector-name" title={serviceName}>
               {serviceName}
@@ -99,7 +124,9 @@ export default function NodeInspector({
             <div className="inspector-meta-row">
               <span className="inspector-id">ID: {nodeId}</span>
               {labels.map((l) => (
-                <span key={l} className="inspector-label-pill">{l}</span>
+                <span key={l} className="inspector-label-pill">
+                  {l}
+                </span>
               ))}
             </div>
           </div>
@@ -179,14 +206,16 @@ export default function NodeInspector({
               </div>
               <div className="risk-breakdown-item">
                 <span className="breakdown-lbl">Criticality</span>
-                <span className="breakdown-val text-capitalize">{criticality || 'Unspecified'}</span>
+                <span className="breakdown-val text-capitalize">
+                  {criticality || 'Unspecified'}
+                </span>
               </div>
             </div>
           </section>
         )}
 
         {/* Impact Analysis Results (if run for this service) */}
-        {isImpactForThisNode && (
+        {isImpactForThisNode && impactResult && (
           <section className="inspector-card card-impact-results">
             <div className="card-header">
               <span className="card-title text-orange">SIMULATED OUTAGE IMPACT</span>
@@ -196,18 +225,23 @@ export default function NodeInspector({
             </div>
 
             <p className="impact-summary-text">
-              If <strong>{serviceName}</strong> fails, <strong>{impactResult.directCount ?? 0}</strong> direct and <strong>{impactResult.indirectCount ?? 0}</strong> indirect dependent services will be impacted.
+              If <strong>{serviceName}</strong> fails,{' '}
+              <strong>{impactResult.directCount ?? 0}</strong> direct and{' '}
+              <strong>{impactResult.indirectCount ?? 0}</strong> indirect dependent services will be
+              impacted.
             </p>
 
             {affectedServices.length > 0 ? (
               <div className="affected-services-list">
                 {affectedServices.map((aff, idx) => {
+                  const affObj = typeof aff === 'string' ? null : (aff as AffectedService);
                   const affName =
                     typeof aff === 'string'
                       ? aff
-                      : aff.properties?.name || aff.name || `Affected Service ${idx + 1}`;
-                  const distance = aff.distance || (aff.impactType === 'DIRECT' ? 1 : 2);
-                  const isDirect = aff.impactType === 'DIRECT' || distance === 1;
+                      : affObj?.properties?.name || affObj?.name || `Affected Service ${idx + 1}`;
+                  const distance =
+                    affObj?.distance || (affObj?.impactType === 'DIRECT' ? 1 : 2);
+                  const isDirect = affObj?.impactType === 'DIRECT' || distance === 1;
 
                   return (
                     <div
@@ -215,12 +249,18 @@ export default function NodeInspector({
                       className={`affected-service-row ${isDirect ? 'row-direct' : 'row-indirect'}`}
                       onClick={() => onSelectNodeByName(affName)}
                       title={`Click to focus ${affName} in graph`}
+                      role="button"
+                      tabIndex={0}
                     >
                       <div className="aff-name-col">
-                        <span className={`aff-bullet ${isDirect ? 'bullet-direct' : 'bullet-indirect'}`} />
+                        <span
+                          className={`aff-bullet ${isDirect ? 'bullet-direct' : 'bullet-indirect'}`}
+                        />
                         <span className="aff-name">{affName}</span>
                       </div>
-                      <span className={`aff-dist-badge ${isDirect ? 'badge-direct' : 'badge-indirect'}`}>
+                      <span
+                        className={`aff-dist-badge ${isDirect ? 'badge-direct' : 'badge-indirect'}`}
+                      >
                         {isDirect ? 'DIRECT (Hop 1)' : `INDIRECT (Hop ${distance})`}
                       </span>
                     </div>
@@ -296,7 +336,9 @@ export default function NodeInspector({
           <dl className="inspector-prop-list">
             <div className="prop-row">
               <dt>Node ID</dt>
-              <dd><code>{nodeId}</code></dd>
+              <dd>
+                <code>{nodeId}</code>
+              </dd>
             </div>
             {Object.entries(nodeProperties).map(([k, v]) => (
               <div key={k} className="prop-row">

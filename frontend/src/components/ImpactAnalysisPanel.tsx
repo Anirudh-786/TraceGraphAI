@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import {
   IconZap,
   IconClose,
@@ -7,6 +7,20 @@ import {
   IconAlertTriangle,
   getServiceIcon,
 } from './Icons';
+import type { ImpactResult, AffectedService } from '../types';
+
+export interface ImpactAnalysisPanelProps {
+  services?: string[];
+  selectedService: string;
+  onSelectService: (service: string) => void;
+  onRunImpact: (serviceName?: string) => void;
+  onClearImpact: () => void;
+  impactResult: ImpactResult | null;
+  isLoading?: boolean;
+  error?: string;
+  onNavigateToGraph: () => void;
+  onAskAiWithService: (service: string) => void;
+}
 
 export default function ImpactAnalysisPanel({
   services = [],
@@ -16,10 +30,10 @@ export default function ImpactAnalysisPanel({
   onClearImpact,
   impactResult,
   isLoading = false,
-  error = "",
+  error = '',
   onNavigateToGraph,
   onAskAiWithService,
-}) {
+}: ImpactAnalysisPanelProps): ReactElement {
   const isSimulationActive = Boolean(impactResult);
   const affectedList = impactResult?.affectedServices || [];
 
@@ -134,7 +148,9 @@ export default function ImpactAnalysisPanel({
 
             <div className="impact-metric-card card-indirect">
               <span className="metric-tag">INDIRECT IMPACT</span>
-              <strong className="metric-number text-yellow">{impactResult.indirectCount ?? 0}</strong>
+              <strong className="metric-number text-yellow">
+                {impactResult.indirectCount ?? 0}
+              </strong>
               <span className="metric-sub">Transitive dependents (Distance &gt; 1)</span>
             </div>
           </div>
@@ -148,7 +164,8 @@ export default function ImpactAnalysisPanel({
               <div>
                 <strong>Need an incident briefing for {impactResult.service}?</strong>
                 <p>
-                  Generate an incident explanation grounded in this FalkorDB evidence with the AI Assistant.
+                  Generate an incident explanation grounded in this FalkorDB evidence with the AI
+                  Assistant.
                 </p>
               </div>
             </div>
@@ -172,7 +189,10 @@ export default function ImpactAnalysisPanel({
 
             {affectedList.length === 0 ? (
               <div className="no-dependents-box">
-                <p>No dependent services found in FalkorDB. This service is a leaf dependency or has zero incoming callers.</p>
+                <p>
+                  No dependent services found in FalkorDB. This service is a leaf dependency or has
+                  zero incoming callers.
+                </p>
               </div>
             ) : (
               <div className="affected-table-container">
@@ -188,16 +208,21 @@ export default function ImpactAnalysisPanel({
                   </thead>
                   <tbody>
                     {affectedList.map((aff, idx) => {
+                      const affObj = typeof aff === 'string' ? null : (aff as AffectedService);
                       const affName =
                         typeof aff === 'string'
                           ? aff
-                          : aff.properties?.name || aff.name || `Affected Service ${idx + 1}`;
-                      const distance = aff.distance || (aff.impactType === 'DIRECT' ? 1 : 2);
-                      const isDirect = aff.impactType === 'DIRECT' || distance === 1;
-                      const labels = aff.labels || [];
+                          : affObj?.properties?.name || affObj?.name || `Affected Service ${idx + 1}`;
+                      const distance =
+                        affObj?.distance || (affObj?.impactType === 'DIRECT' ? 1 : 2);
+                      const isDirect = affObj?.impactType === 'DIRECT' || distance === 1;
+                      const labels = affObj?.labels || [];
 
                       return (
-                        <tr key={`${affName}-${idx}`} className={isDirect ? 'tr-direct' : 'tr-indirect'}>
+                        <tr
+                          key={`${affName}-${idx}`}
+                          className={isDirect ? 'tr-direct' : 'tr-indirect'}
+                        >
                           <td className="td-name">
                             <div className="service-name-cell">
                               {getServiceIcon(affName)}
@@ -205,16 +230,24 @@ export default function ImpactAnalysisPanel({
                             </div>
                           </td>
                           <td>
-                            <span className={`impact-badge ${isDirect ? 'badge-direct' : 'badge-indirect'}`}>
+                            <span
+                              className={`impact-badge ${isDirect ? 'badge-direct' : 'badge-indirect'}`}
+                            >
                               {isDirect ? 'DIRECT DEPENDENT' : 'INDIRECT DEPENDENT'}
                             </span>
                           </td>
                           <td className="td-distance">
-                            <code className="distance-chip">{distance} {distance === 1 ? 'hop' : 'hops'}</code>
+                            <code className="distance-chip">
+                              {distance} {distance === 1 ? 'hop' : 'hops'}
+                            </code>
                           </td>
                           <td className="td-labels">
                             {labels.length > 0 ? (
-                              labels.map((l) => <span key={l} className="label-chip">{l}</span>)
+                              labels.map((l) => (
+                                <span key={l} className="label-chip">
+                                  {l}
+                                </span>
+                              ))
                             ) : (
                               <span className="dim-text">Service</span>
                             )}
@@ -242,8 +275,9 @@ export default function ImpactAnalysisPanel({
             <div className="simulation-notice-bar">
               <span className="notice-icon">&bull;</span>
               <span>
-                Graph semantics: If A has a <code>DEPENDS_ON</code> edge to B, A depends on B. If B fails, A is impacted.
-                Graph distance represents dependency network hops, not severity.
+                Graph semantics: If A has a <code>DEPENDS_ON</code> edge to B, A depends on B. If B
+                fails, A is impacted. Graph distance represents dependency network hops, not
+                severity.
               </span>
             </div>
           </div>
@@ -258,8 +292,8 @@ export default function ImpactAnalysisPanel({
           </div>
           <h3>Ready to Simulate an Outage Scenario</h3>
           <p>
-            Select a service from the dropdown above and click <strong>Analyze Impact</strong> to compute the exact blast radius
-            using real FalkorDB Cypher queries.
+            Select a service from the dropdown above and click <strong>Analyze Impact</strong> to
+            compute the exact blast radius using real FalkorDB Cypher queries.
           </p>
           <div className="quick-suggestions">
             <span>Quick test services:</span>

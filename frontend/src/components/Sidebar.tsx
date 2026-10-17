@@ -1,25 +1,42 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import {
   IconDashboard,
   IconNetwork,
   IconZap,
   IconSparkles,
-  IconDatabase,
   IconChevronLeft,
   IconChevronRight,
-  IconCpu
+  IconCpu,
 } from './Icons';
+import type { ActiveTab, BackendStatus } from '../types';
+
+export interface SidebarProps {
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
+  backendStatus: BackendStatus;
+  stats?: { nodes: number; relationships: number };
+  onResetGraphSelection?: () => void;
+}
+
+interface NavItem {
+  id: ActiveTab;
+  label: string;
+  desc: string;
+  icon: ReactElement;
+}
 
 export default function Sidebar({
   activeTab,
   setActiveTab,
   isCollapsed,
   setIsCollapsed,
-  backendStatus, // 'UP' | 'DOWN' | 'CHECKING'
+  backendStatus,
   stats = { nodes: 0, relationships: 0 },
   onResetGraphSelection,
-}) {
-  const navItems = [
+}: SidebarProps): ReactElement {
+  const navItems: NavItem[] = [
     {
       id: 'overview',
       label: 'Overview',
@@ -50,7 +67,16 @@ export default function Sidebar({
     <aside className={`app-sidebar ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-brand">
-        <div className="brand-logo" onClick={() => setActiveTab('graph')} title="TraceGraphAI">
+        <div
+          className="brand-logo"
+          onClick={() => {
+            setActiveTab('graph');
+            if (onResetGraphSelection) onResetGraphSelection();
+          }}
+          title="TraceGraphAI"
+          role="button"
+          tabIndex={0}
+        >
           <div className="brand-icon-hex">
             <IconCpu size={20} />
           </div>
@@ -65,8 +91,8 @@ export default function Sidebar({
         <button
           className="collapse-toggle-btn"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? <IconChevronRight size={14} /> : <IconChevronLeft size={14} />}
         </button>
@@ -83,7 +109,7 @@ export default function Sidebar({
               onClick={() => {
                 setActiveTab(item.id);
                 if (item.id === 'graph' && onResetGraphSelection) {
-                  // Keep graph clean if requested
+                  onResetGraphSelection();
                 }
               }}
               title={isCollapsed ? item.label : undefined}
@@ -170,7 +196,7 @@ export default function Sidebar({
               <span className="status-sub">
                 {backendStatus === 'UP'
                   ? `tracegraph · ${stats.nodes} nodes, ${stats.relationships} edges`
-                  : 'Spring Boot :8080'}
+                  : 'Spring Boot API'}
               </span>
             </div>
           )}

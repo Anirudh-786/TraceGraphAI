@@ -1,13 +1,22 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import {
   IconNetwork,
   IconZap,
   IconAlertTriangle,
   IconLayers,
   IconShield,
-  IconArrowRight,
   getServiceIcon,
 } from './Icons';
+import type { GraphNode, GraphEdge, ServiceRisk } from '../types';
+
+export interface OverviewDashboardProps {
+  nodes?: GraphNode[];
+  edges?: GraphEdge[];
+  risks?: ServiceRisk[];
+  onSelectService: (service: string) => void;
+  onNavigateToGraph: (service: string) => void;
+  onNavigateToImpact: (service: string) => void;
+}
 
 export default function OverviewDashboard({
   nodes = [],
@@ -16,13 +25,19 @@ export default function OverviewDashboard({
   onSelectService,
   onNavigateToGraph,
   onNavigateToImpact,
-}) {
+}: OverviewDashboardProps): ReactElement {
   const totalNodes = nodes.length;
   const totalEdges = edges.length;
 
-  const highRiskCount = risks.filter((r) => r.riskLevel === 'HIGH' || (r.riskScore >= 70)).length;
-  const medRiskCount = risks.filter((r) => r.riskLevel === 'MEDIUM' || (r.riskScore >= 40 && r.riskScore < 70)).length;
-  const lowRiskCount = risks.filter((r) => r.riskLevel === 'LOW' || (r.riskScore < 40)).length;
+  const highRiskCount = risks.filter(
+    (r) => r.riskLevel === 'HIGH' || r.riskScore >= 70
+  ).length;
+  const medRiskCount = risks.filter(
+    (r) => r.riskLevel === 'MEDIUM' || (r.riskScore >= 40 && r.riskScore < 70)
+  ).length;
+  const lowRiskCount = risks.filter(
+    (r) => r.riskLevel === 'LOW' || r.riskScore < 40
+  ).length;
 
   const topRiskService = risks.length > 0 ? risks[0] : null;
 
@@ -83,9 +98,13 @@ export default function OverviewDashboard({
             </div>
           </div>
           <div className="kpi-multi-values">
-            <span className="text-amber"><strong>{medRiskCount}</strong> Med</span>
+            <span className="text-amber">
+              <strong>{medRiskCount}</strong> Med
+            </span>
             <span className="text-dim">/</span>
-            <span className="text-green"><strong>{lowRiskCount}</strong> Low</span>
+            <span className="text-green">
+              <strong>{lowRiskCount}</strong> Low
+            </span>
           </div>
           <span className="kpi-hint">Lower criticality or blast radius</span>
         </div>
@@ -111,10 +130,18 @@ export default function OverviewDashboard({
                 This service has the highest calculated blast radius in your graph. An outage here directly or indirectly cascades to <strong>{topRiskService.affectedCount}</strong> dependent services.
               </p>
               <div className="spotlight-stats-pills">
-                <span className="pill-item">Criticality: <strong>{topRiskService.criticality || 'Medium'}</strong></span>
-                <span className="pill-item">Impacted Dependents: <strong>{topRiskService.affectedCount} services</strong></span>
-                <span className="pill-item">Criticality Score: <strong>{topRiskService.criticalityScore} pts</strong></span>
-                <span className="pill-item">Impact Score: <strong>{topRiskService.impactScore} pts</strong></span>
+                <span className="pill-item">
+                  Criticality: <strong>{topRiskService.criticality || 'Medium'}</strong>
+                </span>
+                <span className="pill-item">
+                  Impacted Dependents: <strong>{topRiskService.affectedCount} services</strong>
+                </span>
+                <span className="pill-item">
+                  Criticality Score: <strong>{topRiskService.criticalityScore} pts</strong>
+                </span>
+                <span className="pill-item">
+                  Impact Score: <strong>{topRiskService.impactScore} pts</strong>
+                </span>
               </div>
             </div>
 
@@ -149,7 +176,9 @@ export default function OverviewDashboard({
         <div className="table-header-row">
           <div>
             <h3>All Services Architecture &amp; Risk Ranking</h3>
-            <p className="table-subtext">Derived from Spring Boot /risk and /api/graph/risks endpoints</p>
+            <p className="table-subtext">
+              Derived from Spring Boot /risk and /api/graph/risks endpoints
+            </p>
           </div>
           <span className="table-count-label">{risks.length} Services Evaluated</span>
         </div>

@@ -1,10 +1,19 @@
-import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { memo, type ReactElement } from 'react';
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { getServiceIcon } from './Icons';
+import type { ServiceNodeCustomData } from '../types';
 
-function ServiceNodeComponent({ id, data, selected }) {
-  const serviceName = data.properties?.name || data.name || `Service ${id}`;
-  const criticality = data.properties?.criticality || data.riskData?.criticality;
+export type ServiceNodeType = Node<ServiceNodeCustomData, 'serviceNode'>;
+
+function ServiceNodeComponent({
+  id,
+  data,
+  selected,
+}: NodeProps<ServiceNodeType>): ReactElement {
+  const serviceName =
+    data.properties?.name || data.name || (data.id ? `Service ${data.id}` : `Service ${id}`);
+  const criticality =
+    data.properties?.criticality || data.riskData?.criticality;
   const riskScore = data.riskData?.riskScore;
   const riskLevel = data.riskData?.riskLevel;
 
@@ -17,22 +26,22 @@ function ServiceNodeComponent({ id, data, selected }) {
   const isAiHighlighted = Boolean(data.isAiHighlighted);
 
   // Accessible risk class
-  let riskBadgeClass = "";
-  if (riskLevel === "HIGH" || (riskScore && riskScore >= 70)) {
-    riskBadgeClass = "badge-risk-high";
-  } else if (riskLevel === "MEDIUM" || (riskScore && riskScore >= 40)) {
-    riskBadgeClass = "badge-risk-medium";
-  } else if (riskLevel === "LOW" || (riskScore && riskScore < 40)) {
-    riskBadgeClass = "badge-risk-low";
+  let riskBadgeClass = '';
+  if (riskLevel === 'HIGH' || (riskScore !== undefined && riskScore >= 70)) {
+    riskBadgeClass = 'badge-risk-high';
+  } else if (riskLevel === 'MEDIUM' || (riskScore !== undefined && riskScore >= 40)) {
+    riskBadgeClass = 'badge-risk-medium';
+  } else if (riskLevel === 'LOW' || (riskScore !== undefined && riskScore < 40)) {
+    riskBadgeClass = 'badge-risk-low';
   }
 
   // Criticality class
-  let critClass = "";
+  let critClass = '';
   if (criticality) {
     const c = String(criticality).toLowerCase();
-    if (c === "high") critClass = "badge-crit-high";
-    else if (c === "medium") critClass = "badge-crit-medium";
-    else if (c === "low") critClass = "badge-crit-low";
+    if (c === 'high') critClass = 'badge-crit-high';
+    else if (c === 'medium') critClass = 'badge-crit-medium';
+    else if (c === 'low') critClass = 'badge-crit-low';
   }
 
   // Compose dynamic class name
@@ -45,7 +54,9 @@ function ServiceNodeComponent({ id, data, selected }) {
     isDimmed ? 'node-dimmed' : '',
     isSearchMatch ? 'node-search-match' : '',
     isAiHighlighted ? 'node-ai-highlight' : '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -80,7 +91,10 @@ function ServiceNodeComponent({ id, data, selected }) {
 
           {/* Risk Level / Score only if supplied by risk API */}
           {riskScore !== undefined && riskScore !== null && (
-            <span className={`node-badge ${riskBadgeClass}`} title={`Risk Score: ${riskScore}/100 (${riskLevel || 'Calculated'})`}>
+            <span
+              className={`node-badge ${riskBadgeClass}`}
+              title={`Risk Score: ${riskScore}/100 (${riskLevel || 'Calculated'})`}
+            >
               {riskScore}/100
             </span>
           )}

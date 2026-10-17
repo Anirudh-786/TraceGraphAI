@@ -1,60 +1,75 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent, type ReactElement } from 'react';
 import {
   IconSparkles,
   IconNetwork,
   IconAlertTriangle,
   IconCheck,
   IconCpu,
-  IconZap,
   getServiceIcon,
 } from './Icons';
+import type { AiResponse, AffectedService } from '../types';
+
+export interface AiAssistantProps {
+  services?: string[];
+  selectedService?: string;
+  onSelectService: (service: string) => void;
+  aiAnswer: AiResponse | null;
+  aiLoading?: boolean;
+  aiError?: string;
+  onAskAi: (service: string, question: string) => void;
+  onHighlightInGraph: (
+    targetService: string,
+    affectedServices: (AffectedService | string)[]
+  ) => void;
+  topRiskService?: string;
+}
 
 export default function AiAssistant({
   services = [],
-  selectedService = "",
+  selectedService = '',
   onSelectService,
   aiAnswer,
-  aiLoading,
-  aiError,
+  aiLoading = false,
+  aiError = '',
   onAskAi,
   onHighlightInGraph,
-  topRiskService = "",
-}) {
-  const [question, setQuestion] = useState("");
+  topRiskService = '',
+}: AiAssistantProps): ReactElement {
+  const [question, setQuestion] = useState('');
 
   const suggestedQuestions = [
     {
-      label: "What happens if database-service goes down?",
-      service: "database-service",
-      text: "What happens if database-service goes down? Explain direct and indirect impacts.",
+      label: 'What happens if database-service goes down?',
+      service: 'database-service',
+      text: 'What happens if database-service goes down? Explain direct and indirect impacts.',
     },
     {
-      label: "Which services depend on payment-service?",
-      service: "payment-service",
-      text: "Which services depend on payment-service, and what is its blast radius?",
+      label: 'Which services depend on payment-service?',
+      service: 'payment-service',
+      text: 'Which services depend on payment-service, and what is its blast radius?',
     },
     {
       label: topRiskService
         ? `Explain highest-risk service (${topRiskService})`
-        : "Explain the highest-risk service",
-      service: topRiskService || (services[0] || ""),
+        : 'Explain the highest-risk service',
+      service: topRiskService || services[0] || '',
       text: `Explain the risk factors, criticality, and dependent cascade for ${topRiskService || 'this service'}.`,
     },
     {
-      label: "Analyze the failure cascade and blast radius",
-      service: selectedService || (services[0] || ""),
-      text: "Analyze the failure cascade and summarize how dependent services are affected if an outage occurs.",
+      label: 'Analyze the failure cascade and blast radius',
+      service: selectedService || services[0] || '',
+      text: 'Analyze the failure cascade and summarize how dependent services are affected if an outage occurs.',
     },
   ];
 
-  function handleSelectChip(item) {
+  function handleSelectChip(item: { service: string; text: string }) {
     if (item.service && services.includes(item.service)) {
       onSelectService(item.service);
     }
     setQuestion(item.text);
   }
 
-  function handleSubmit(e) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!selectedService || !question.trim() || aiLoading) return;
     onAskAi(selectedService, question.trim());
@@ -141,9 +156,7 @@ export default function AiAssistant({
             maxLength={1000}
             disabled={aiLoading}
           />
-          <div className="textarea-char-count">
-            {question.length} / 1000 characters
-          </div>
+          <div className="textarea-char-count">{question.length} / 1000 characters</div>
         </div>
 
         {/* Submit Button */}
@@ -154,7 +167,9 @@ export default function AiAssistant({
             disabled={!selectedService || !question.trim() || aiLoading}
           >
             <IconSparkles size={15} />
-            <span>{aiLoading ? 'Synthesizing FalkorDB Evidence...' : 'Ask TraceGraphAI Copilot'}</span>
+            <span>
+              {aiLoading ? 'Synthesizing FalkorDB Evidence...' : 'Ask TraceGraphAI Copilot'}
+            </span>
           </button>
         </div>
       </form>
@@ -170,7 +185,8 @@ export default function AiAssistant({
           <div className="radar-text">
             <strong>Analyzing FalkorDB Graph Evidence...</strong>
             <p>
-              Retrieving topology paths, calculated risk scores, and calling local <code>llama3.2:3b</code> via Ollama.
+              Retrieving topology paths, calculated risk scores, and calling{' '}
+              <code>llama3.2:3b</code> via Ollama.
             </p>
           </div>
         </div>
@@ -218,7 +234,9 @@ export default function AiAssistant({
             <div className="evidence-metrics-bar">
               <div className="evidence-item">
                 <span className="ev-label">RISK LEVEL</span>
-                <span className={`ev-badge badge-risk-${(aiAnswer.risk.riskLevel || 'LOW').toLowerCase()}`}>
+                <span
+                  className={`ev-badge badge-risk-${(aiAnswer.risk.riskLevel || 'LOW').toLowerCase()}`}
+                >
                   {aiAnswer.risk.riskLevel}
                 </span>
               </div>
@@ -228,7 +246,9 @@ export default function AiAssistant({
               </div>
               <div className="evidence-item">
                 <span className="ev-label">TOTAL AFFECTED</span>
-                <strong className="ev-val text-orange">{aiAnswer.impact?.affectedCount ?? 0}</strong>
+                <strong className="ev-val text-orange">
+                  {aiAnswer.impact?.affectedCount ?? 0}
+                </strong>
               </div>
               <div className="evidence-item">
                 <span className="ev-label">DIRECT IMPACT</span>
@@ -257,11 +277,12 @@ export default function AiAssistant({
               </div>
               <div className="verified-pills">
                 {affectedList.map((aff, i) => {
+                  const affObj = typeof aff === 'string' ? null : (aff as AffectedService);
                   const name =
                     typeof aff === 'string'
                       ? aff
-                      : aff.properties?.name || aff.name || `Service ${i + 1}`;
-                  const dist = aff.distance || 1;
+                      : affObj?.properties?.name || affObj?.name || `Service ${i + 1}`;
+                  const dist = affObj?.distance || 1;
                   return (
                     <span key={i} className="verified-pill">
                       {name} <small>(Dist: {dist})</small>

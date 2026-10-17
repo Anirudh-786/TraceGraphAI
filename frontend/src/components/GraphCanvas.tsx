@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback, useEffect, type ReactElement, type MouseEvent } from 'react';
 import {
   ReactFlow,
   Background,
@@ -9,6 +9,8 @@ import {
   MarkerType,
   useReactFlow,
   ReactFlowProvider,
+  type Node,
+  type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import ServiceNode from './ServiceNode';
@@ -17,14 +19,38 @@ import {
   IconFitView,
   IconRefresh,
   IconFilter,
-  IconAlertTriangle,
   IconNetwork,
   IconZap,
 } from './Icons';
+import type {
+  GraphNode,
+  GraphEdge,
+  ServiceRisk,
+  ImpactResult,
+  BackendStatus,
+  ServiceNodeCustomData,
+  AffectedService,
+} from '../types';
 
 const nodeTypes = {
   serviceNode: ServiceNode,
 };
+
+export interface GraphCanvasProps {
+  rawNodes?: GraphNode[];
+  rawEdges?: GraphEdge[];
+  risks?: ServiceRisk[];
+  selectedNodeId?: string | number | null;
+  onNodeSelect?: (node: Node<ServiceNodeCustomData> | null) => void;
+  impactResult?: ImpactResult | null;
+  searchQuery?: string;
+  aiHighlightedServices?: string[];
+  relationshipFilter?: string;
+  onRelationshipFilterChange?: (filter: string) => void;
+  onSeedDemoData?: () => void;
+  isSeeding?: boolean;
+  backendStatus?: BackendStatus;
+}
 
 function InnerGraphCanvas({
   rawNodes = [],
@@ -33,19 +59,19 @@ function InnerGraphCanvas({
   selectedNodeId = null,
   onNodeSelect,
   impactResult = null,
-  searchQuery = "",
+  searchQuery = '',
   aiHighlightedServices = [],
-  relationshipFilter = "ALL",
+  relationshipFilter = 'ALL',
   onRelationshipFilterChange,
   onSeedDemoData,
   isSeeding = false,
-  backendStatus = "UP",
-}) {
+  backendStatus = 'UP',
+}: GraphCanvasProps): ReactElement {
   const { fitView } = useReactFlow();
 
   // Create risk map by service name
   const riskMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, ServiceRisk>();
     risks.forEach((r) => {
       if (r.service) map.set(r.service, r);
     });
@@ -54,7 +80,10 @@ function InnerGraphCanvas({
 
   // Create impact map: serviceName -> { isOrigin, impactType, distance }
   const impactMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<
+      string,
+      { isOrigin: boolean; impactType: 'DIRECT' | 'INDIRECT' | null; distance: number }
+    >();
     if (!impactResult || !impactResult.service) return map;
 
     // Origin
@@ -67,14 +96,16 @@ function InnerGraphCanvas({
     // Dependents
     const affected = impactResult.affectedServices || [];
     affected.forEach((aff) => {
+      const affObj = typeof aff === 'string' ? null : (aff as AffectedService);
       const name =
         typeof aff === 'string'
           ? aff
-          : aff.properties?.name || aff.name || `Service ${aff.id}`;
-      const distance = aff.distance || (aff.impactType === 'DIRECT' ? 1 : 2);
+          : affObj?.properties?.name || affObj?.name || `Service ${affObj?.id}`;
+      const distance =
+        affObj?.distance || (affObj?.impactType === 'DIRECT' ? 1 : 2);
       map.set(name, {
         isOrigin: false,
-        impactType: aff.impactType || (distance === 1 ? 'DIRECT' : 'INDIRECT'),
+        impactType: affObj?.impactType || (distance === 1 ? 'DIRECT' : 'INDIRECT'),
         distance,
       });
     });
@@ -87,8 +118,8 @@ function InnerGraphCanvas({
     return calculateGraphLayout(rawNodes, rawEdges);
   }, [rawNodes, rawEdges]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<ServiceNodeCustomData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Filter edges by relationship type
   const availableRelTypes = useMemo(() => {
@@ -101,17 +132,18 @@ function InnerGraphCanvas({
     const query = searchQuery.trim().toLowerCase();
     const hasActiveImpact = impactMap.size > 0;
 
-    const enriched = initialNodes.map((node) => {
-      const svcName = node.data.properties?.name || node.data.name || node.id;
+    const enriched: Node<ServiceNodeCustomData>[] = initialNodes.map((node) => {
+      const svcName =
+        node.data.properties?.name || node.data.name || String(node.id);
       const riskData = riskMap.get(svcName) || null;
       const impactInfo = impactMap.get(svcName);
 
       // Search match
       const isSearchMatch = Boolean(
         query &&
-        (svcName.toLowerCase().includes(query) ||
-         String(node.id).includes(query) ||
-         (node.data.labels || []).some((l) => l.toLowerCase().includes(query)))
+          (svcName.toLowerCase().includes(query) ||
+            String(node.id).includes(query) ||
+            (node.data.labels || []).some((l) => l.toLowerCase().includes(query)))
       );
 
       // AI highlight
@@ -137,7 +169,15 @@ function InnerGraphCanvas({
     });
 
     setNodes(enriched);
-  }, [initialNodes, selectedNodeId, riskMap, impactMap, searchQuery, aiHighlightedServices, setNodes]);
+  }, [
+    initialNodes,
+    selectedNodeId,
+    riskMap,
+    impactMap,
+    searchQuery,
+    aiHighlightedServices,
+    setNodes,
+  ]);
 
   // Sync and enrich edges
   useEffect(() => {
@@ -146,7 +186,7 @@ function InnerGraphCanvas({
       return (edge.label || 'DEPENDS_ON') === relationshipFilter;
     });
 
-    const flowEdges = filtered.map((edge) => {
+    const flowEdges: Edge[] = filtered.map((edge) => {
       const sourceId = String(edge.source);
       const targetId = String(edge.target);
       const edgeId = `${sourceId}->${targetId}:${edge.label || 'DEPENDS_ON'}`;
@@ -158,8 +198,6 @@ function InnerGraphCanvas({
       const sourceName = sourceNode?.properties?.name || sourceId;
       const targetName = targetNode?.properties?.name || targetId;
 
-      // In Cypher: (affected)-[:DEPENDS_ON*]->(target)
-      // Edge goes source -> target. If target is failure origin or affected, and source is affected:
       const isTargetInImpact = impactMap.has(targetName);
       const isSourceInImpact = impactMap.has(sourceName);
       const isImpactEdge = isTargetInImpact && isSourceInImpact;
@@ -200,7 +238,7 @@ function InnerGraphCanvas({
 
   // Node click handler
   const handleNodeClick = useCallback(
-    (_, node) => {
+    (_: MouseEvent, node: Node<ServiceNodeCustomData>) => {
       if (onNodeSelect) {
         onNodeSelect(node);
       }
@@ -230,19 +268,16 @@ function InnerGraphCanvas({
   }, [rawNodes, rawEdges, setNodes, fitView]);
 
   // MiniMap node color logic
-  const getMiniMapNodeColor = useCallback(
-    (node) => {
-      if (node.data?.isFailureOrigin) return '#f43f5e';
-      if (node.data?.impactType === 'DIRECT') return '#f97316';
-      if (node.data?.impactType === 'INDIRECT') return '#fbbf24';
-      if (node.selected) return '#8b5cf6';
-      const risk = node.data?.riskData?.riskLevel;
-      if (risk === 'HIGH') return '#ef4444';
-      if (risk === 'MEDIUM') return '#f59e0b';
-      return '#3b82f6';
-    },
-    []
-  );
+  const getMiniMapNodeColor = useCallback((node: Node<ServiceNodeCustomData>): string => {
+    if (node.data?.isFailureOrigin) return '#f43f5e';
+    if (node.data?.impactType === 'DIRECT') return '#f97316';
+    if (node.data?.impactType === 'INDIRECT') return '#fbbf24';
+    if (node.selected) return '#8b5cf6';
+    const risk = node.data?.riskData?.riskLevel;
+    if (risk === 'HIGH') return '#ef4444';
+    if (risk === 'MEDIUM') return '#f59e0b';
+    return '#3b82f6';
+  }, []);
 
   // Initial fit view
   useEffect(() => {
@@ -320,7 +355,7 @@ POST http://localhost:8080/api/graph/relationships
           <span>Auto Layout</span>
         </button>
 
-        {availableRelTypes.length > 1 && (
+        {availableRelTypes.length > 1 && onRelationshipFilterChange && (
           <div className="canvas-rel-filter">
             <IconFilter size={13} className="text-muted" />
             <select
@@ -342,7 +377,9 @@ POST http://localhost:8080/api/graph/relationships
       {/* Semantic Notice Pill */}
       <div className="canvas-semantic-pill" title="Graph dependency semantics">
         <span className="pill-dot" />
-        <span>A &rarr; B means <code>A depends on B</code></span>
+        <span>
+          A &rarr; B means <code>A depends on B</code>
+        </span>
       </div>
 
       {/* React Flow Core Canvas */}
@@ -362,10 +399,7 @@ POST http://localhost:8080/api/graph/relationships
         }}
       >
         <Background color="#1e293b" gap={24} size={1} />
-        <Controls
-          showInteractive={false}
-          className="react-flow-controls-custom"
-        />
+        <Controls showInteractive={false} className="react-flow-controls-custom" />
         <MiniMap
           nodeColor={getMiniMapNodeColor}
           nodeStrokeWidth={2}
@@ -378,7 +412,7 @@ POST http://localhost:8080/api/graph/relationships
   );
 }
 
-export default function GraphCanvas(props) {
+export default function GraphCanvas(props: GraphCanvasProps): ReactElement {
   return (
     <ReactFlowProvider>
       <InnerGraphCanvas {...props} />

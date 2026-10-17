@@ -1,23 +1,36 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect, type ReactElement } from 'react';
 import { IconSearch, IconRefresh, IconClose } from './Icons';
+import type { BackendStatus, PageMeta } from '../types';
+
+export interface TopNavProps {
+  activeTab?: string;
+  pageMeta?: PageMeta;
+  backendStatus?: BackendStatus;
+  nodeCount?: number;
+  edgeCount?: number;
+  searchQuery?: string;
+  onSearchChange: (query: string) => void;
+  onRefresh: () => void;
+  isLoading?: boolean;
+  matchingNodesCount?: number | null;
+}
 
 export default function TopNav({
-  activeTab,
-  pageMeta = { title: "Dependency Graph", subtitle: "Interactive service topology" },
-  backendStatus = "CHECKING",
+  pageMeta = { title: 'Dependency Graph', subtitle: 'Interactive service topology' },
+  backendStatus = 'CHECKING',
   nodeCount = 0,
   edgeCount = 0,
-  searchQuery = "",
+  searchQuery = '',
   onSearchChange,
   onRefresh,
   isLoading = false,
   matchingNodesCount = null,
-}) {
-  const searchInputRef = useRef(null);
+}: TopNavProps): ReactElement {
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Global hotkey: '/' focuses search input
   useEffect(() => {
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === '/' && document.activeElement !== searchInputRef.current) {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -51,15 +64,13 @@ export default function TopNav({
           {searchQuery && (
             <button
               className="search-clear-btn"
-              onClick={() => onSearchChange("")}
+              onClick={() => onSearchChange('')}
               title="Clear search"
             >
               <IconClose size={12} />
             </button>
           )}
-          {!searchQuery && (
-            <kbd className="search-kbd">/</kbd>
-          )}
+          {!searchQuery && <kbd className="search-kbd">/</kbd>}
         </div>
 
         {searchQuery && matchingNodesCount !== null && (
@@ -97,7 +108,11 @@ export default function TopNav({
         >
           <span className="chip-indicator" />
           <span className="chip-text">
-            {backendStatus === 'UP' ? 'FalkorDB Connected' : backendStatus === 'CHECKING' ? 'Connecting...' : 'API Disconnected'}
+            {backendStatus === 'UP'
+              ? 'FalkorDB Connected'
+              : backendStatus === 'CHECKING'
+              ? 'Connecting...'
+              : 'API Disconnected'}
           </span>
         </div>
 
